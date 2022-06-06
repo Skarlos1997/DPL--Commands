@@ -1,0 +1,249 @@
+int error, row, col, val, cvg, row_b,row_t,row_l,row_g,row_c,fs,cont_lineerror;
+string ruta_n,nm,nm_case;
+set s_elm, s_ctg;
+object o_elm, o_ctg, ldf,bus1,bus2,typ;
+
+double v_kv,v_pu,i_n,v_n,mva,carga,mva_h,carga_t,v_phi,acti1,react1,cosphi,long;
+double acti2, react2, icurrent;
+
+ClearOutput();
+ResetCalculation();
+s_ctg = AllRelevant('*.ElmLne');
+
+!--------------Configuración archivo excel-------------------
+error = xlStart();  !Iniciamos el modulo MS Excel
+if(error){
+  Error('No puede iniciarse MS Excel application');
+  exit();
+}
+xlSetDebug(1);
+xlSetVisible(0);
+
+ruta_n=sprintf( '%s%s',ruta, 'results.xlsx' );
+xlNewWorkbook();
+
+cont_lineerror = 0;
+cont_lineerror = 0;
+
+!---------------  Preparacion hojas excel  -------------------
+
+xlSetWorksheetName(1,'Cargas'); !Nombramos Cargas a la quinta hoja
+xlAddWorksheet('Trafos'); !Nombramos Trafos a la cuarta hoja
+xlAddWorksheet('Gen'); !Nombramos Gen a la tercera hoja
+xlAddWorksheet('Lineas'); !Nombramos Lineas a la segunda hoja
+xlAddWorksheet('Barras'); !Nombramos Barras a la primera hoja
+
+
+!   Hoja de calculos de Barras
+xlActivateWorksheet(1);
+row = 1; col=1;
+xlSetValue(col,row,'Contingencia');   !Asigna valor (columna,fila, Valor_asignar)
+xlSetValue(col+1,row,'Barra');
+xlSetValue(col+2,row,'v(kv)');
+xlSetValue(col+3,row,'v(pu)');
+xlSetValue(col+4,row,'v_phi(°)');
+
+!   Hoja de calculos de Lineas
+xlActivateWorksheet(2);
+col=1;
+xlSetValue(col,row,'Contingencia');   !Asigna valor (columna,fila, Valor_asignar)
+xlSetValue(col+1,row,'Linea');
+xlSetValue(col+2,row,'Flujo Activa bus1(MW)');
+xlSetValue(col+3,row,'Flujo Reactiva bus1(MVAr)');
+xlSetValue(col+4,row,'Flujo Activa bus2(MW)');
+xlSetValue(col+5,row,'Flujo Reactiva bus2(MVAr)');
+xlSetValue(col+6,row,'Corriente(kA)');
+xlSetValue(col+7,row,'F.P.(%)');
+xlSetValue(col+8,row,'Cap(MVA)');
+xlSetValue(col+9,row,'Cargabilidad(%)');
+
+!   Hoja de calculos de Generadores
+xlActivateWorksheet(3);
+col=1;
+xlSetValue(col,row,'Contingencia');   !Asigna valor (columna,fila, Valor_asignar)
+xlSetValue(col+1,row,'Generador');
+xlSetValue(col+2,row,'v(kv)');
+xlSetValue(col+3,row,'v(pu)');
+xlSetValue(col+4,row,'v_phi(°)');
+xlSetValue(col+5,row,'Corriente(kA)');
+xlSetValue(col+6,row,'Flujo Activa(MW)');
+xlSetValue(col+7,row,'Flujo Reactiva(MVAr)');
+xlSetValue(col+8,row,'F.P.(%)');
+
+!   Hoja de calculos de Transformadores
+xlActivateWorksheet(4);
+col=1;
+xlSetValue(col,row,'Contingencia');   !Asigna valor (columna,fila, Valor_asignar)
+xlSetValue(col+1,row,'Transformador');
+xlSetValue(col+2,row,'Flujo Activa bus1(MW)');
+xlSetValue(col+3,row,'Flujo Reactiva bus1(MVAr)');
+xlSetValue(col+4,row,'Flujo Activa bus2(MW)');
+xlSetValue(col+5,row,'Flujo Reactiva bus2(MVAr)');
+xlSetValue(col+6,row,'Corriente(kA)');
+xlSetValue(col+7,row,'F.P.(%)');
+xlSetValue(col+8,row,'Cargabilidad(%)');
+
+!   Hoja de calculos de Cargas
+xlActivateWorksheet(5);
+col=1;
+xlSetValue(col,row,'Contingencia');   !Asigna valor (columna,fila, Valor_asignar)
+xlSetValue(col+1,row,'Carga');
+xlSetValue(col+2,row,'Flujo Activa(MW)');
+xlSetValue(col+3,row,'Flujo Reactiva(MVAr)');
+xlSetValue(col+4,row,'Corriente(kA)');
+xlSetValue(col+5,row,'F.P.(%)');
+xlActivateWorksheet(1);
+
+
+row_b=2; row_l=2; row_g=2; row_t=2; row_c=2;
+
+ldf=GetCaseObject('ComLdf');                             
+for(o_ctg=s_ctg.First();o_ctg;o_ctg=s_ctg.Next()){
+  o_ctg:outserv = 0;
+}
+for(o_ctg= s_ctg.First();o_ctg;o_ctg=s_ctg.Next()){
+  if(cont_lineerror <=0){
+    cont_lineerror = 1;
+  }else{
+    o_ctg:outserv = 1;
+    cvg = ldf.Execute();
+    s_elm = AllRelevant(0);
+    if(cvg=0){
+      printf('Calculate N-1 Ctg: %o',o_ctg);
+      for(o_elm=s_elm.First();o_elm;o_elm=s_elm.Next()){
+        ! Buscamos los barrajes y guardamos la información en el excel
+        val = o_elm.IsClass('ElmTerm');
+        if(val=1){
+          nm = o_elm:e:loc_name;
+          v_kv=o_elm:m:Ul;
+          v_pu=o_elm:m:u;
+          v_phi=o_elm:m:phiu;
+
+          xlActivateWorksheet(1); 
+          xlSetValue(col,row_b,o_ctg:e:loc_name);
+          xlSetValue(col+1,row_b,nm);
+          xlSetValue(col+2,row_b,v_kv);
+          xlSetValue(col+3,row_b,v_pu);
+          xlSetValue(col+4,row_b,v_phi);
+          row_b+=1;
+        }
+
+        ! Buscamos las lineas y guardamos la información en el excel
+        val=o_elm.IsClass('ElmLne');
+        if(val=1){
+
+          nm=o_elm:e:loc_name;
+          i_n=o_elm:e:Inom_a;
+          v_n=o_elm.Unom();
+          mva = sqrt(3)*v_n*i_n;
+          carga=o_elm:c:loading;
+          typ=o_elm:typ_id;
+          long=o_elm:dline;
+          bus1=o_elm:bus1;bus1=bus1:cterm;bus1=bus1:cpSubstat;
+          bus2=o_elm:bus2;bus2=bus2:cterm;bus2=bus2:cpSubstat;
+          acti1=o_elm:m:P:bus1;
+          react1=o_elm:m:Q:bus1;
+          acti2=o_elm:m:P:bus2;
+          react2=o_elm:m:Q:bus2;
+          icurrent=o_elm:m:I:bus1;
+          cosphi=o_elm:m:cosphi:bus1;
+          xlActivateWorksheet(2);
+          xlSetValue(col,row_l,o_ctg:e:loc_name);   !Asigna valor (columna,fila, Valor_asignar)
+          xlSetValue(col+1,row_l,nm);
+          xlSetValue(col+2,row_l,acti1);
+          xlSetValue(col+3,row_l,react1);
+          xlSetValue(col+4,row_l,acti2);
+          xlSetValue(col+5,row_l,react2);
+          xlSetValue(col+6,row_l,icurrent);
+          xlSetValue(col+7,row_l,cosphi);
+          xlSetValue(col+8,row_l,mva);
+          xlSetValue(col+9,row_l,carga);
+          row_l+=1;
+        }
+
+        ! Buscamos los generadores y guardamos la información en el excel
+        val=o_elm.IsClass('ElmSym');
+        if(val=1){
+
+          
+
+          nm = o_elm:e:loc_name;
+          typ=o_elm:typ_id;
+          bus1=o_elm:bus1;bus1=bus1:cterm;bus1=bus1:cpSubstat;
+          v_kv=o_elm:m:U1:bus1;
+          v_pu=o_elm:m:u1:bus1;
+          v_phi=o_elm:m:phiu1:bus1;
+          acti1=o_elm:m:P:bus1;
+          react1=o_elm:m:Q:bus1;
+          icurrent=o_elm:m:I:bus1;
+          cosphi=o_elm:m:cosphi:bus1;
+          xlActivateWorksheet(3);
+          xlSetValue(col,row_g,o_ctg:e:loc_name);   !Asigna valor (columna,fila, Valor_asignar)
+          xlSetValue(col+1,row_g,nm);
+          xlSetValue(col+2,row_g,v_kv);
+          xlSetValue(col+3,row_g,v_pu);
+          xlSetValue(col+4,row_g,v_phi);
+          xlSetValue(col+5,row_g,icurrent);
+          xlSetValue(col+6,row_g,acti1);
+          xlSetValue(col+7,row_g,react1);
+          xlSetValue(col+8,row_g,cosphi);
+          row_g+=1;
+
+        }
+
+        ! Buscamos los transformadore y guardamos la información en el excel
+        val=o_elm.IsClass('ElmTr2');
+        if(val=1){
+
+          nm=o_elm:e:loc_name;
+          carga=o_elm:c:loading;
+          typ=o_elm:typ_id;
+          acti1=o_elm:m:P:bushv;
+          react1=o_elm:m:Q:bushv;
+          acti2=o_elm:m:P:buslv;
+          react2=o_elm:m:Q:buslv;
+          icurrent=o_elm:m:I:bushv;
+          cosphi=o_elm:m:cosphi:bushv;
+          xlActivateWorksheet(4);
+          xlSetValue(col,row_t,o_ctg:e:loc_name);   !Asigna valor (columna,fila, Valor_asignar)
+          xlSetValue(col+1,row_t,nm);
+          xlSetValue(col+2,row_t,acti1);
+          xlSetValue(col+3,row_t,react1);
+          xlSetValue(col+4,row_t,acti2);
+          xlSetValue(col+5,row_t,react2);
+          xlSetValue(col+6,row_t,icurrent);
+          xlSetValue(col+7,row_t,cosphi);
+          xlSetValue(col+8,row_t,carga);
+          row_t+=1;
+        }
+
+        ! Buscamos las cargas y guardamos la información en el excel
+        val=o_elm.IsClass('ElmLod');
+        if(val=1){
+
+          nm=o_elm:e:loc_name;
+          typ=o_elm:typ_id;
+          bus1=o_elm:bus1;bus1=bus1:cterm;bus1=bus1:cpSubstat;
+          acti1=o_elm:m:P:bus1;
+          react1=o_elm:m:Q:bus1;
+          icurrent=o_elm:m:I:bus1;
+          cosphi=o_elm:m:cosphi:bus1;
+          xlActivateWorksheet(5);
+          xlSetValue(col,row_c,o_ctg:e:loc_name);   !Asigna valor (columna,fila, Valor_asignar)
+          xlSetValue(col+1,row_c,nm);
+          xlSetValue(col+2,row_c,acti1);
+          xlSetValue(col+3,row_c,react1);
+          xlSetValue(col+4,row_c,icurrent);
+          xlSetValue(col+5,row_c,cosphi);
+          row_c+=1;
+        }
+      }
+    }
+  }
+  o_ctg:outserv = 0;
+}
+error = xlSaveWorkbookAs(ruta_n);
+if(error){
+  Error('No se pudo guardar el archivo');
+}
+xlTerminate();
