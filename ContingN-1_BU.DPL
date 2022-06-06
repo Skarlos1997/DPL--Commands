@@ -2,7 +2,7 @@ int error, row, col, val, cvg, row_b,row_t,row_l,row_g,row_c,fs,cont_lineerror;
 string ruta_n,nm,nm_case;
 set s_elm, s_ctg;
 object o_elm, o_ctg, ldf,bus1,bus2,typ;
-
+!HolaMundo
 double v_kv,v_pu,i_n,v_n,mva,carga,mva_h,carga_t,v_phi,acti1,react1,cosphi,long;
 double acti2, react2, icurrent;
 
